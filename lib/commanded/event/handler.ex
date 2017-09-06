@@ -110,11 +110,13 @@ defmodule Commanded.Event.Handler do
   ]
 
   def start_link(handler_name, handler_module, opts \\ []) do
-    GenServer.start_link(__MODULE__, %Handler{
+    handler = %Handler{
       handler_name: handler_name,
       handler_module: handler_module,
       subscribe_from: opts[:start_from] || :origin,
-    })
+    }
+
+    @registry.start_link({Handler, handler_name}, __MODULE__, handler)
   end
 
   def init(%Handler{} = state) do
