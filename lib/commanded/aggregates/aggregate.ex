@@ -10,7 +10,8 @@ defmodule Commanded.Aggregates.Aggregate do
   """
 
   use GenServer
-
+  use Commanded.Registration
+  
   require Logger
 
   alias Commanded.Aggregates.{Aggregate,DefaultLifespan}
