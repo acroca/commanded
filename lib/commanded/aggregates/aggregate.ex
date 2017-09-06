@@ -17,8 +17,6 @@ defmodule Commanded.Aggregates.Aggregate do
   alias Commanded.Event.Mapper
   alias Commanded.EventStore
 
-  @registry_provider Application.get_env(:commanded, :registry_provider, Registry)
-  @aggregate_registry_name :aggregate_registry
   @read_event_batch_size 100
 
   defstruct [
@@ -28,18 +26,16 @@ defmodule Commanded.Aggregates.Aggregate do
     aggregate_version: 0,
   ]
 
-  def start_link(aggregate_module, aggregate_uuid) do
-    name = via_tuple(aggregate_uuid)
-    GenServer.start_link(__MODULE__, %Aggregate{
+  def start_link(aggregate_module, aggregate_uuid, opts \\ []) do
+    aggregate = %Aggregate{
       aggregate_module: aggregate_module,
-      aggregate_uuid: aggregate_uuid
-    },
-    name: name)
+      aggregate_uuid: aggregate_uuid,
+    }
+
+    GenServer.start_link(__MODULE__, aggregate, opts)
   end
 
-  defp via_tuple(aggregate_uuid) do
-    {:via, @registry_provider, {@aggregate_registry_name, aggregate_uuid}}
-  end
+  def name(aggregate_uuid), do: {Aggregate, aggregate_uuid}
 
   def init(%Aggregate{} = state) do
     # initial aggregate state is populated by loading events from event store
@@ -70,7 +66,7 @@ defmodule Commanded.Aggregates.Aggregate do
   Returns `{:ok, aggregate_version}` on success, or `{:error, reason}` on failure.
   """
   def execute(aggregate_uuid, command, handler, function \\ :execute, timeout \\ 5_000, lifespan \\ DefaultLifespan) do
-    GenServer.call(via_tuple(aggregate_uuid), {:execute_command, handler, function, command, lifespan}, timeout)
+    GenServer.call(via_name(aggregate_uuid), {:execute_command, handler, function, command, lifespan}, timeout)
   end
 
   @doc false
@@ -84,9 +80,7 @@ defmodule Commanded.Aggregates.Aggregate do
 
   @doc false
   def handle_cast({:populate_aggregate_state}, %Aggregate{} = state) do
-    state = populate_aggregate_state(state)
-
-    {:noreply, state}
+    {:noreply, populate_aggregate_state(state)}
   end
 
   @doc false
@@ -180,4 +174,6 @@ defmodule Commanded.Aggregates.Aggregate do
 
     EventStore.append_to_stream(aggregate_uuid, expected_version, event_data)
   end
+
+  defp via_name(aggregate_uuid), do: aggregate_uuid |> name() |> via_tuple()
 end
