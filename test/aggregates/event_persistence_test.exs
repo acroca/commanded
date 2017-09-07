@@ -3,9 +3,10 @@ defmodule Commanded.Aggregates.EventPersistenceTest do
 
   import Commanded.Enumerable, only: [pluck: 2]
 
-  alias Commanded.EventStore
   alias Commanded.Aggregates.{Aggregate,AppendItemsHandler,ExampleAggregate}
-  alias ExampleAggregate.Commands.AppendItems
+  alias Commanded.Aggregates.ExampleAggregate.Commands.AppendItems
+  alias Commanded.EventStore
+  alias Commanded.Helpers.ProcessHelper
 
   test "should persist pending events in order applied" do
     aggregate_uuid = UUID.uuid4
@@ -26,7 +27,7 @@ defmodule Commanded.Aggregates.EventPersistenceTest do
 
     {:ok, 10} = Aggregate.execute(aggregate_uuid, %AppendItems{count: 10}, AppendItemsHandler, :handle)
 
-    Commanded.Helpers.Process.shutdown(aggregate_uuid)
+    ProcessHelper.shutdown_aggregate(aggregate_uuid)
 
     {:ok, ^aggregate_uuid} = Commanded.Aggregates.Supervisor.open_aggregate(ExampleAggregate, aggregate_uuid)
 
@@ -46,7 +47,7 @@ defmodule Commanded.Aggregates.EventPersistenceTest do
     {:ok, 200} = Aggregate.execute(aggregate_uuid, %AppendItems{count: 100}, AppendItemsHandler, :handle)
     {:ok, 201} = Aggregate.execute(aggregate_uuid, %AppendItems{count: 1}, AppendItemsHandler, :handle)
 
-    Commanded.Helpers.Process.shutdown(aggregate_uuid)
+    ProcessHelper.shutdown_aggregate(aggregate_uuid)
 
     {:ok, ^aggregate_uuid} = Commanded.Aggregates.Supervisor.open_aggregate(ExampleAggregate, aggregate_uuid)
 

@@ -1,4 +1,4 @@
-defmodule Commanded.Entities.ExecuteCommandForAggregateTest do
+defmodule Commanded.Aggregates.ExecuteCommandForAggregateTest do
   use Commanded.StorageCase
 
   alias Commanded.Aggregates.Aggregate
@@ -6,7 +6,7 @@ defmodule Commanded.Entities.ExecuteCommandForAggregateTest do
   alias Commanded.ExampleDomain.{BankAccount,OpenAccountHandler,DepositMoneyHandler}
   alias Commanded.ExampleDomain.BankAccount.Commands.{OpenAccount,DepositMoney}
   alias Commanded.ExampleDomain.BankAccount.Events.BankAccountOpened
-  alias Commanded.Helpers
+  alias Commanded.Helpers.{ProcessHelper,Wait}
   alias Commanded.Registration
 
   test "execute command against an aggregate" do
@@ -16,7 +16,7 @@ defmodule Commanded.Entities.ExecuteCommandForAggregateTest do
 
     {:ok, 1} = Aggregate.execute(account_number, %OpenAccount{account_number: account_number, initial_balance: 1_000}, BankAccount, :open_account)
 
-    Helpers.Process.shutdown(account_number)
+    ProcessHelper.shutdown_aggregate(account_number)
 
     # reload aggregate to fetch persisted events from event store and rebuild state by applying saved events
     {:ok, ^account_number} = Commanded.Aggregates.Supervisor.open_aggregate(BankAccount, account_number)
@@ -32,7 +32,7 @@ defmodule Commanded.Entities.ExecuteCommandForAggregateTest do
 
     {:ok, 1} = Aggregate.execute(account_number, %OpenAccount{account_number: account_number, initial_balance: 1_000}, OpenAccountHandler, :handle)
 
-    Helpers.Process.shutdown(account_number)
+    ProcessHelper.shutdown_aggregate(account_number)
 
     # reload aggregate to fetch persisted events from event store and rebuild state by applying saved events
     {:ok, ^account_number} = Commanded.Aggregates.Supervisor.open_aggregate(BankAccount, account_number)
@@ -50,7 +50,7 @@ defmodule Commanded.Entities.ExecuteCommandForAggregateTest do
 
     state_before = Aggregate.aggregate_state(account_number)
 
-    assert_process_exit(account_number, fn ->
+    assert_aggregate_exit(account_number, fn ->
       Aggregate.execute(account_number, %OpenAccount{account_number: account_number, initial_balance: 1}, OpenAccountHandler, :handle)
     end)
 
@@ -74,18 +74,21 @@ defmodule Commanded.Entities.ExecuteCommandForAggregateTest do
       }
     ])
 
-    assert_process_exit(account_number, fn ->
+    assert_aggregate_exit(account_number, fn ->
       Aggregate.execute(account_number, %DepositMoney{account_number: account_number, transfer_uuid: UUID.uuid4, amount: 50}, DepositMoneyHandler, :handle)
     end)
   end
 
-  def assert_process_exit(aggregate_uuid, fun) do
-    Process.flag(:trap_exit, true)
+  def assert_aggregate_exit(aggregate_uuid, fun) do
+    pid = spawn(fun)
 
-    spawn_link(fun)
+    # wait for spawned function to terminate
+    ref = Process.monitor(pid)
+    assert_receive {:DOWN, ^ref, _, _, _}
 
-    # process should exit
-    assert_receive({:EXIT, _from, _reason})
-    assert Registration.whereis_name({Aggregate, aggregate_uuid}) == :undefined
+    # wait for aggregate process to terminate
+    Wait.until(fn ->
+      assert Registration.whereis_name({Aggregate, aggregate_uuid}) == :undefined
+    end)
   end
 end
