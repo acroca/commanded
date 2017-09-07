@@ -1,34 +1,11 @@
 defmodule Commanded.Event.EventHandlerMacroTest do
   use Commanded.StorageCase
 
-  defmodule AccountBalanceHandler do
-    use Commanded.Event.Handler, name: "account_balance_handler"
-
-    alias Commanded.ExampleDomain.BankAccount.Events.{
-      BankAccountOpened,
-      MoneyDeposited,
-    }
-
-    def handle(%BankAccountOpened{initial_balance: initial_balance}, _metadata) do
-      Agent.update(__MODULE__, fn _ -> initial_balance end)
-    end
-
-    def handle(%MoneyDeposited{balance: balance}, _metadata) do
-      Agent.update(__MODULE__, fn _ -> balance end)
-    end
-
-    def current_balance do
-      Agent.get(__MODULE__, fn balance -> balance end)
-    end
-  end
-
-  defmodule IgnoredEvent do
-    defstruct [name: nil]
-  end
-
+  alias Commanded.Event.IgnoredEvent
   alias Commanded.Helpers.EventFactory
   alias Commanded.Helpers.Wait
   alias Commanded.ExampleDomain.BankAccount.Events.{BankAccountOpened,MoneyDeposited}
+  alias Commanded.ExampleDomain.BankAccount.AccountBalanceHandler
 
   test "should handle published events" do
     {:ok, _} = Agent.start_link(fn -> 0 end, name: AccountBalanceHandler)

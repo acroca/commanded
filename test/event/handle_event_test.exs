@@ -5,15 +5,22 @@ defmodule Commanded.Event.HandleEventTest do
   import Commanded.Assertions.EventAssertions
 
   alias Commanded.EventStore
-  alias Commanded.Event.AppendingEventHandler
+  alias Commanded.Event.{AppendingEventHandler,UninterestingEvent}
   alias Commanded.Helpers.EventFactory
-  alias Commanded.Helpers.Wait
-  alias Commanded.ExampleDomain.AccountBalanceHandler
+  alias Commanded.Helpers.{ProcessHelper,Wait}
+  alias Commanded.ExampleDomain.BankAccount.AccountBalanceHandler
   alias Commanded.ExampleDomain.BankAccount.Events.{BankAccountOpened,MoneyDeposited}
 
+  setup do
+    on_exit fn ->
+      ProcessHelper.shutdown(Commanded.Event.AccountBalanceHandler)
+      ProcessHelper.shutdown(Commanded.Event.AppendingEventHandler)
+    end
+  end
+
+  @tag :wip
   test "should be notified of events" do
-    {:ok, _} = AccountBalanceHandler.start_link()
-    {:ok, handler} = Commanded.Event.Handler.start_link("account_balance", AccountBalanceHandler)
+    {:ok, handler} = AccountBalanceHandler.start_link()
 
     events = [
       %BankAccountOpened{account_number: "ACC123", initial_balance: 1_000},
@@ -28,11 +35,9 @@ defmodule Commanded.Event.HandleEventTest do
     end)
   end
 
-  defmodule UninterestingEvent, do: defstruct [field: nil]
-
+  # @tag :wip
   test "should ignore uninterested events" do
-    {:ok, _} = AccountBalanceHandler.start_link
-		{:ok, handler} = Commanded.Event.Handler.start_link("account_balance", AccountBalanceHandler)
+    {:ok, handler} = AccountBalanceHandler.start_link()
 
     # include uninterested events within those the handler is interested in
     events = [
@@ -51,6 +56,7 @@ defmodule Commanded.Event.HandleEventTest do
     end)
   end
 
+  # @tag :wip
   test "should ignore events created before the event handler's subscription when starting from `current`" do
     {:ok, _} = AppendingEventHandler.start_link()
 
@@ -74,6 +80,7 @@ defmodule Commanded.Event.HandleEventTest do
     end)
 	end
 
+  # @tag :wip
   test "should receive events created before the event handler's subscription when starting from `origin`" do
     {:ok, _} = AppendingEventHandler.start_link()
 
@@ -95,6 +102,7 @@ defmodule Commanded.Event.HandleEventTest do
     end)
 	end
 
+  # @tag :wip
 	test "should ignore already seen events" do
     {:ok, _} = AppendingEventHandler.start_link
     {:ok, handler} = Commanded.Event.Handler.start_link("test_event_handler", AppendingEventHandler)
