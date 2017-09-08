@@ -3,12 +3,17 @@ defmodule Commanded.Event.EventHandlerMacroTest do
 
   alias Commanded.Event.IgnoredEvent
   alias Commanded.Helpers.EventFactory
-  alias Commanded.Helpers.Wait
+  alias Commanded.Helpers.{ProcessHelper,Wait}
   alias Commanded.ExampleDomain.BankAccount.Events.{BankAccountOpened,MoneyDeposited}
   alias Commanded.ExampleDomain.BankAccount.AccountBalanceHandler
 
+  setup do
+    on_exit fn ->
+      ProcessHelper.shutdown(AccountBalanceHandler)
+    end
+  end
+
   test "should handle published events" do
-    {:ok, _} = Agent.start_link(fn -> 0 end, name: AccountBalanceHandler)
     {:ok, handler} = AccountBalanceHandler.start_link()
 
     recorded_events =

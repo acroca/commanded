@@ -105,6 +105,11 @@ defmodule Commanded.Event.Handler do
 
         Commanded.Event.Handler.start_link(@name, __MODULE__, opts)
       end
+
+      @doc false
+      def init, do: :ok
+
+      defoverridable [init: 0]
     end
   end
 
@@ -112,9 +117,6 @@ defmodule Commanded.Event.Handler do
   @doc false
   defmacro __before_compile__(_env) do
     quote do
-      @doc false
-      def init, do: :ok
-
       @doc false
       def handle(_event, _metadata), do: :ok
     end

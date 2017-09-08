@@ -13,12 +13,11 @@ defmodule Commanded.Event.HandleEventTest do
 
   setup do
     on_exit fn ->
-      ProcessHelper.shutdown(Commanded.Event.AccountBalanceHandler)
-      ProcessHelper.shutdown(Commanded.Event.AppendingEventHandler)
+      ProcessHelper.shutdown(AccountBalanceHandler)
+      ProcessHelper.shutdown(AppendingEventHandler)
     end
   end
 
-  @tag :wip
   test "should be notified of events" do
     {:ok, handler} = AccountBalanceHandler.start_link()
 
@@ -35,7 +34,6 @@ defmodule Commanded.Event.HandleEventTest do
     end)
   end
 
-  # @tag :wip
   test "should ignore uninterested events" do
     {:ok, handler} = AccountBalanceHandler.start_link()
 
@@ -56,10 +54,7 @@ defmodule Commanded.Event.HandleEventTest do
     end)
   end
 
-  # @tag :wip
-  test "should ignore events created before the event handler's subscription when starting from `current`" do
-    {:ok, _} = AppendingEventHandler.start_link()
-
+  test "should ignore events created before the event handler's subscription when starting from `:current`" do
     stream_uuid = UUID.uuid4
     initial_events = [%BankAccountOpened{account_number: "ACC123", initial_balance: 1_000}]
     new_events = [%MoneyDeposited{amount: 50, balance: 1_050}]
@@ -68,44 +63,39 @@ defmodule Commanded.Event.HandleEventTest do
 
     wait_for_event BankAccountOpened
 
-    {:ok, _handler} = Commanded.Event.Handler.start_link("test_event_handler", AppendingEventHandler, start_from: :current)
+    {:ok, _} = AppendingEventHandler.start_link(start_from: :current)
 
     {:ok, 2} = EventStore.append_to_stream(stream_uuid, 1, Commanded.Event.Mapper.map_to_event_data(new_events, UUID.uuid4))
 
     wait_for_event MoneyDeposited
 
     Wait.until(fn ->
-      assert AppendingEventHandler.received_events == new_events
-      assert pluck(AppendingEventHandler.received_metadata, :stream_version) == [2]
+      assert AppendingEventHandler.received_events() == new_events
+      assert pluck(AppendingEventHandler.received_metadata(), :stream_version) == [2]
     end)
 	end
 
-  # @tag :wip
-  test "should receive events created before the event handler's subscription when starting from `origin`" do
-    {:ok, _} = AppendingEventHandler.start_link()
-
+  test "should receive events created before the event handler's subscription when starting from `:origin`" do
     stream_uuid = UUID.uuid4
     initial_events = [%BankAccountOpened{account_number: "ACC123", initial_balance: 1_000}]
     new_events = [%MoneyDeposited{amount: 50, balance: 1_050}]
 
     {:ok, 1} = EventStore.append_to_stream(stream_uuid, 0, Commanded.Event.Mapper.map_to_event_data(initial_events, UUID.uuid4))
 
-    {:ok, _handler} = Commanded.Event.Handler.start_link("test_event_handler", AppendingEventHandler, start_from: :origin)
+    {:ok, _} = AppendingEventHandler.start_link(start_from: :origin)
 
     {:ok, 2} = EventStore.append_to_stream(stream_uuid, 1, Commanded.Event.Mapper.map_to_event_data(new_events, UUID.uuid4))
 
     wait_for_event MoneyDeposited
 
     Wait.until(fn ->
-      assert AppendingEventHandler.received_events == initial_events ++ new_events
-      assert pluck(AppendingEventHandler.received_metadata, :stream_version) == [1, 2]
+      assert AppendingEventHandler.received_events() == initial_events ++ new_events
+      assert pluck(AppendingEventHandler.received_metadata(), :stream_version) == [1, 2]
     end)
 	end
 
-  # @tag :wip
 	test "should ignore already seen events" do
-    {:ok, _} = AppendingEventHandler.start_link
-    {:ok, handler} = Commanded.Event.Handler.start_link("test_event_handler", AppendingEventHandler)
+    {:ok, handler} = AppendingEventHandler.start_link()
 
     events = [
       %BankAccountOpened{account_number: "ACC123", initial_balance: 1_000},
@@ -120,8 +110,8 @@ defmodule Commanded.Event.HandleEventTest do
     end)
 
     Wait.until(fn ->
-      assert AppendingEventHandler.received_events == events
-      assert pluck(AppendingEventHandler.received_metadata, :stream_version) == [1, 2]
+      assert AppendingEventHandler.received_events() == events
+      assert pluck(AppendingEventHandler.received_metadata(), :stream_version) == [1, 2]
     end)
 	end
 end
