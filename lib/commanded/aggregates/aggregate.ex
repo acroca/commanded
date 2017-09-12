@@ -11,7 +11,7 @@ defmodule Commanded.Aggregates.Aggregate do
 
   use GenServer
   use Commanded.Registration
-  
+
   require Logger
 
   alias Commanded.Aggregates.{Aggregate,DefaultLifespan}
@@ -27,15 +27,16 @@ defmodule Commanded.Aggregates.Aggregate do
     aggregate_version: 0,
   ]
 
-  def start_link(aggregate_module, aggregate_uuid) do
-    name = name(aggregate_uuid)
+  def start_link(aggregate_module, aggregate_uuid, opts \\ []) do
     aggregate = %Aggregate{
       aggregate_module: aggregate_module,
       aggregate_uuid: aggregate_uuid,
     }
 
-    Registration.start_link(name, __MODULE__, aggregate)
+    GenServer.start_link(__MODULE__, aggregate, opts)
   end
+
+  def name(aggregate_uuid), do: {Aggregate, aggregate_uuid}
 
   def init(%Aggregate{} = state) do
     # initial aggregate state is populated by loading events from event store
@@ -175,6 +176,5 @@ defmodule Commanded.Aggregates.Aggregate do
     EventStore.append_to_stream(aggregate_uuid, expected_version, event_data)
   end
 
-  defp name(aggregate_uuid), do: {Aggregate, aggregate_uuid}
   defp via_name(aggregate_uuid), do: aggregate_uuid |> name() |> via_tuple()
 end
