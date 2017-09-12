@@ -1,5 +1,5 @@
 defmodule Commanded.Helpers.ProcessHelper do
-  @moduledoc false  
+  @moduledoc false
   import ExUnit.Assertions
 
   alias Commanded.Aggregates.Aggregate
