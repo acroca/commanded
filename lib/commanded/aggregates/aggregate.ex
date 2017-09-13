@@ -36,6 +36,7 @@ defmodule Commanded.Aggregates.Aggregate do
     GenServer.start_link(__MODULE__, aggregate, opts)
   end
 
+  @doc false
   def name(aggregate_uuid), do: {Aggregate, aggregate_uuid}
 
   def init(%Aggregate{} = state) do
@@ -71,13 +72,13 @@ defmodule Commanded.Aggregates.Aggregate do
   end
 
   @doc false
-  def aggregate_state(aggregate_uuid), do: GenServer.call(via_tuple(aggregate_uuid), {:aggregate_state})
+  def aggregate_state(aggregate_uuid), do: GenServer.call(via_name(aggregate_uuid), {:aggregate_state})
 
   @doc false
-  def aggregate_state(aggregate_uuid, timeout), do: GenServer.call(via_tuple(aggregate_uuid), {:aggregate_state}, timeout)
+  def aggregate_state(aggregate_uuid, timeout), do: GenServer.call(via_name(aggregate_uuid), {:aggregate_state}, timeout)
 
   @doc false
-  def aggregate_version(aggregate_uuid), do: GenServer.call(via_tuple(aggregate_uuid), {:aggregate_version})
+  def aggregate_version(aggregate_uuid), do: GenServer.call(via_name(aggregate_uuid), {:aggregate_version})
 
   @doc false
   def handle_cast({:populate_aggregate_state}, %Aggregate{} = state) do

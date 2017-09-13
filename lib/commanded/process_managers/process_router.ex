@@ -14,6 +14,7 @@ defmodule Commanded.ProcessManagers.ProcessRouter do
   alias Commanded.EventStore.RecordedEvent
 
   defmodule State do
+    @moduledoc false
     defstruct [
       process_manager_name: nil,
       process_manager_module: nil,
