@@ -111,6 +111,7 @@ defmodule Commanded.Event.Handler do
   Start event handler process (or configure as a worker inside a [supervisor](supervision.html)):
 
     {:ok, handler} = ExampleHandler.start_link()
+    
   """
   defmacro __using__(opts) do
     quote location: :keep do
