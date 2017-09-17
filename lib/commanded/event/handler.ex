@@ -111,7 +111,7 @@ defmodule Commanded.Event.Handler do
   Start event handler process (or configure as a worker inside a [supervisor](supervision.html)):
 
     {:ok, handler} = ExampleHandler.start_link()
-    
+
   """
   defmacro __using__(opts) do
     quote location: :keep do
@@ -129,6 +129,27 @@ defmodule Commanded.Event.Handler do
           |> Keyword.merge(opts)
 
         Commanded.Event.Handler.start_link(@name, __MODULE__, opts)
+      end
+
+      @doc """
+      Provides a child specification to allow the event handler to be easily supervised
+
+      ## Example
+
+          Supervisor.start_link([
+            {ExampleHandler, []}
+          ], strategy: :one_for_one)
+
+      """
+      def child_spec(opts) do
+        default = %{
+          id: {__MODULE__, @name},
+          start: {Commanded.Event.Handler, :start_link, [@name, __MODULE__, opts]},
+          restart: :permanent,
+          type: :worker,
+        }
+
+        Supervisor.child_spec(default, [])
       end
 
       @doc false
@@ -161,7 +182,7 @@ defmodule Commanded.Event.Handler do
   ]
 
   def start_link(handler_name, handler_module, opts \\ []) do
-    name = {Handler, handler_name}
+    name = name(handler_name)
     handler = %Handler{
       handler_name: handler_name,
       handler_module: handler_module,
@@ -170,6 +191,9 @@ defmodule Commanded.Event.Handler do
 
     Registration.start_link(name, __MODULE__, handler)
   end
+
+  @doc false
+  def name(name), do: {__MODULE__, name}
 
   def init(%Handler{handler_module: handler_module} = state) do
     GenServer.cast(self(), {:subscribe_to_events})
@@ -180,6 +204,10 @@ defmodule Commanded.Event.Handler do
     end
 
     {reply, state}
+  end
+
+  def handle_call({:last_seen_event}, _from, %Handler{last_seen_event: last_seen_event} = state) do
+    {:reply, last_seen_event, state}
   end
 
   def handle_cast({:subscribe_to_events}, %Handler{handler_name: handler_name, subscribe_from: subscribe_from} = state) do
