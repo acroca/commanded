@@ -87,7 +87,7 @@ defmodule Commanded.Event.Handler do
 
   Return `:ok` on success, `{:error, :already_seen_event}` to ack and skip the event, or `{:error, reason}` on failure.
   """
-  @callback handle(domain_event, metadata) :: :ok | {:error, reason :: any()}
+  @callback handle(domain_event, metadata) :: :ok | {:error, :already_seen_event} | {:error, reason :: any()}
 
   @doc """
   Macro as a convenience for defining an event handler
@@ -173,6 +173,7 @@ defmodule Commanded.Event.Handler do
     end
   end
 
+  @doc false
   defstruct [
     handler_name: nil,
     handler_module: nil,
@@ -181,6 +182,7 @@ defmodule Commanded.Event.Handler do
     subscription: nil,
   ]
 
+  @doc false
   def start_link(handler_name, handler_module, opts \\ []) do
     name = name(handler_name)
     handler = %Handler{
@@ -195,6 +197,7 @@ defmodule Commanded.Event.Handler do
   @doc false
   def name(name), do: {__MODULE__, name}
 
+  @doc false
   def init(%Handler{handler_module: handler_module} = state) do
     GenServer.cast(self(), {:subscribe_to_events})
 
@@ -206,10 +209,12 @@ defmodule Commanded.Event.Handler do
     {reply, state}
   end
 
+  @doc false
   def handle_call({:last_seen_event}, _from, %Handler{last_seen_event: last_seen_event} = state) do
     {:reply, last_seen_event, state}
   end
 
+  @doc false
   def handle_cast({:subscribe_to_events}, %Handler{handler_name: handler_name, subscribe_from: subscribe_from} = state) do
     {:ok, subscription} = EventStore.subscribe_to_all_streams(handler_name, self(), subscribe_from)
 
@@ -220,6 +225,7 @@ defmodule Commanded.Event.Handler do
     {:noreply, state}
   end
 
+  @doc false
   def handle_info({:events, events}, state) do
     Logger.debug(fn -> "event handler received events: #{inspect events}" end)
 
@@ -230,7 +236,7 @@ defmodule Commanded.Event.Handler do
 
       case handle_event(event_number, data, metadata, state) do
         :ok -> confirm_receipt(event, state)
-        {:error, :already_seen_event} -> state
+        {:error, :already_seen_event} -> confirm_receipt(event, state)
       end
     end)
 
